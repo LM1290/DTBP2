@@ -1,0 +1,5 @@
+{
+  "name": "True DTBP",
+  "description": "A production-grade trading assistant to calculate Real-Time Day Trading Buying Power, simulate broker margin rules (Fidelity, Schwab, FINRA), and avoid margin calls.",
+  "requestFramePermissions": []
+}

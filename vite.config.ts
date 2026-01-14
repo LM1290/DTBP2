@@ -5,7 +5,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/dtbp2/", // Ensure this matches your GitHub Repository name exactly
+  base: "/DTBP2/", // Ensure this matches your GitHub Repository name exactly
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "."),

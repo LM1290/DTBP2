@@ -20,92 +20,58 @@ export default function App() {
   const [scenarioResult, setScenarioResult] = useState<CalculationResult | null>(null);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'reconcile'>('dashboard');
 
-  // Load initial data from Supabase
+  // Load data from Supabase on mount
   useEffect(() => {
     const loadData = async () => {
       const { data: tradesData } = await supabase.from('trades').select('*').order('timestamp', { ascending: true });
       const { data: settingsData } = await supabase.from('settings').select('*').single();
-
       if (tradesData) setTrades(tradesData);
       if (settingsData) setSettings(settingsData);
     };
     loadData();
   }, []);
 
-  // Recalculate whenever local state changes
   useEffect(() => {
-    const res = calculateBuyingPower(settings, trades);
-    setCalculationResult(res);
+    setCalculationResult(calculateBuyingPower(settings, trades));
   }, [settings, trades]);
 
-  // Handle Scenario Calculation
-  useEffect(() => {
-    if (previewTrade) {
-      const scenarioTrades = [...trades, previewTrade];
-      setScenarioResult(calculateBuyingPower(settings, scenarioTrades));
-    } else {
-      setScenarioResult(null);
-    }
-  }, [previewTrade, settings, trades]);
-
   const handleAddTrade = async (trade: Trade) => {
-    const { error } = await supabase.from('trades').insert([trade]);
-    if (!error) {
-      setTrades(prev => [...prev, trade]);
-    } else {
-      console.error("Error saving trade:", error);
-    }
+    setTrades(prev => [...prev, trade]); // Immediate UI update
+    await supabase.from('trades').insert([trade]); // Background save
   };
 
   const handleDeleteTrade = async (id: string) => {
-    const { error } = await supabase.from('trades').delete().eq('id', id);
-    if (!error) {
-      setTrades(prev => prev.filter(t => t.id !== id));
-    }
+    setTrades(prev => prev.filter(t => t.id !== id));
+    await supabase.from('trades').delete().eq('id', id);
   };
 
   const handleSaveSettings = async (newSettings: AccountSettings) => {
-    const { error } = await supabase.from('settings').upsert({ id: 1, ...newSettings });
-    if (!error) {
-      setSettings(newSettings);
-    }
+    setSettings(newSettings);
+    await supabase.from('settings').upsert({ id: 1, ...newSettings });
   };
 
   const handleResetSession = async () => {
-    if (window.confirm("Are you sure you want to clear all trades?")) {
-      const { error } = await supabase.from('trades').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (!error) {
-        setTrades([]);
-      }
+    if (window.confirm("Clear all trades?")) {
+      setTrades([]);
+      await supabase.from('trades').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans selection:bg-blue-500/30">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans">
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ShieldCheck className="text-blue-500" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">True DTBP</h1>
-            <span className="hidden sm:inline-block text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-500 border border-slate-700 ml-2">
-              {settings.broker} Mode
-            </span>
           </div>
-          
           <div className="flex items-center gap-4">
-             <button onClick={handleResetSession} className="text-slate-400 hover:text-rose-400 transition-colors p-2"><RotateCcw size={20} /></button>
-             <div className="h-6 w-px bg-slate-800"></div>
-             <button onClick={() => setActiveTab('reconcile')} className={`text-sm font-medium flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${activeTab === 'reconcile' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}>
-              <RefreshCw size={16} /> <span className="hidden sm:inline">Reconcile</span>
-            </button>
-            <button onClick={() => setActiveTab('dashboard')} className={`text-sm font-medium flex items-center gap-2 px-3 py-1.5 rounded transition-colors ${activeTab === 'dashboard' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'}`}>
-              Dashboard
-            </button>
-            <button onClick={() => setIsSettingsOpen(true)} className="text-slate-400 hover:text-white transition-colors"><Settings size={20} /></button>
+            <button onClick={handleResetSession} className="p-2 text-slate-400 hover:text-rose-400"><RotateCcw size={20} /></button>
+            <button onClick={() => setActiveTab('dashboard')} className={`px-3 py-1.5 rounded ${activeTab === 'dashboard' ? 'bg-slate-800 text-white' : 'text-slate-400'}`}>Dashboard</button>
+            <button onClick={() => setIsSettingsOpen(true)} className="text-slate-400 hover:text-white"><Settings size={20} /></button>
           </div>
         </div>
       </header>
-
       <main className="max-w-7xl mx-auto px-4 py-8">
         {activeTab === 'dashboard' ? (
           <div className="space-y-6">
@@ -116,12 +82,7 @@ export default function App() {
           <Reconciliation calculated={calculationResult} />
         )}
       </main>
-
       <SettingsPanel settings={settings} onSave={handleSaveSettings} isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-      
-      <footer className="max-w-7xl mx-auto px-4 py-8 text-center border-t border-slate-800 mt-8">
-        <p className="text-xs text-slate-600">DISCLAIMER: Simulation tool only. Verify with your broker before trading.</p>
-      </footer>
     </div>
   );
 }
